@@ -8,7 +8,7 @@ from keras.utils import to_categorical
 from keras.preprocessing.image import img_to_array, array_to_img
 from dataclasses import dataclass
 
-
+############# Simple function tog et normal cnn model
 def get_model(base_model, input_dim=(),resize_dim=(), classes=3, loss=None, classifier_activation="softmax"):
     inputs = Input(shape=input_dim)
     resized_inputs = Resizing(height=resize_dim[0], width=resize_dim[1])(inputs)
@@ -41,27 +41,6 @@ effnetv2b3_base = EfficientNetV2B3(
         )
 
 
-if __name__ == "__main__":
-    base_model = effnetv2b3_base
-    input_dimensions = (32, 32, 3)  # Adjusted for CIFAR-10 dataset
-    resized_shape = (224, 224, 3) 
-    num_classes = 10  # CIFAR-10 has 10 classes
 
-    # Load CIFAR-10 dataset
-    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+############ Encoder for SIMCLR
 
-    # Normalize the images and one-hot encode the labels
-    #x_train = x_train.astype("float32") / 255.0
-    #x_test = x_test.astype("float32") / 255.0
-    y_train = to_categorical(y_train, num_classes)
-    y_test = to_categorical(y_test, num_classes)
-
-    # Get the model
-    model = get_model(base_model, input_dim=input_dimensions,resize_dim=resized_shape, classes=num_classes, classifier_activation="softmax", loss="categorical_crossentropy")
-
-    # Train the model
-    model.fit(x_train, y_train, validation_data=(x_test, y_test), epochs=50, batch_size=32)
-
-    # Evaluate the model
-    loss, accuracy = model.evaluate(x_test, y_test)
-    print(f"Test Loss: {loss}, Test Accuracy: {accuracy}")
