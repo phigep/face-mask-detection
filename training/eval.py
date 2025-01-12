@@ -57,7 +57,7 @@ def superimpose_gradcam(img, heatmap, cam_path="cam.jpg", alpha=0.4):
     heatmap = np.uint8(255 * heatmap)
 
     # Use jet colormap to colorize heatmap
-    jet = mpl.colormaps["viridis"]
+    jet = mpl.colormaps["magma"]
 
     # Use RGB values of the colormap
     jet_colors = jet(np.arange(256))[:, :3]
