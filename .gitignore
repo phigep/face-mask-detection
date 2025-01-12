@@ -3,6 +3,7 @@
 
 # Local data directory
 /data/
+/data_small/
 
 # Python bytecode
 __pycache__/

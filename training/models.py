@@ -12,11 +12,12 @@ from dataclasses import dataclass
 
 ############# Simple function tog et normal cnn model
 def get_model(base_model, input_dim=(),resize_dim=(), classes=3, classifier_activation="softmax"):
+    
     inputs = Input(shape=input_dim)
+    base_model.input_tensor = inputs
     resized_inputs = Resizing(height=resize_dim[0], width=resize_dim[1])(inputs)
     
-    base = base_model(resized_inputs, training=False)
-
+    base = base_model(resized_inputs, training=True)
     x = GlobalAveragePooling2D()(base)
     x = Dropout(rate=0.3)(x)
     outputs = Dense(classes, activation=classifier_activation)(x)
@@ -38,7 +39,7 @@ effnetv2b3_base = EfficientNetV2B3(
 
 import os
 
-def train_model(model, train_data, val_data, checkpoint_dir, epochs=50):
+def train_model(model, train_data, val_data, checkpoint_dir, epochs=20):
     """
     Trains the given model using provided training and validation data,
     and saves the best model checkpoint.
