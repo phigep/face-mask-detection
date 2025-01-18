@@ -110,4 +110,4 @@ def plot_images_grid(images, figsize=(10, 10)):
     for ax in axes[len(images):]:
         ax.axis('off')
     plt.tight_layout()
-    plt.show()
+    return fig
