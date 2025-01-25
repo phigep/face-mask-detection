@@ -90,13 +90,13 @@ def get_supervised_contrastive_loss(temperature=0.05):
 
 
 ############# Simple function tog et normal cnn model
-def get_model(base_model, input_dim=(),resize_dim=(), classes=3, classifier_activation="softmax"):
+def get_model(base_model, input_dim=(),resize_dim=(), classes=3, classifier_activation="softmax",training_base=False):
     
     inputs = Input(shape=input_dim)
     base_model.input_tensor = inputs
     resized_inputs = Resizing(height=resize_dim[0], width=resize_dim[1])(inputs)
     
-    base = base_model(resized_inputs, training=False)
+    base = base_model(resized_inputs, training=training_base)
     x = GlobalAveragePooling2D()(base)
     x = Dropout(rate=0.3)(x)
     outputs = Dense(classes, activation=classifier_activation)(x)
@@ -150,7 +150,7 @@ def train_model(model, train_data, val_data, checkpoint_dir, epochs=20):
 
     # Ensure the checkpoint directory exists
     os.makedirs(checkpoint_dir, exist_ok=True)
-    checkpoint_path = os.path.join(checkpoint_dir, f'{model.name}.h5')
+    checkpoint_path = os.path.join(checkpoint_dir, f'{model.name}.keras')
     
     # Define callbacks
     early_stopping = EarlyStopping(
