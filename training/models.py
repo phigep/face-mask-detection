@@ -132,7 +132,7 @@ def get_fcn_model(base_model, input_dim=(),resize_dim=(), classes=3, pooling_ope
     model = Model(inputs=inputs, outputs=x)
     return model
 
-def train_model(model, train_data, val_data, checkpoint_dir, epochs=20):
+def train_model(model, train_data, val_data, checkpoint_dir, epochs=20,modelname="effnetv2b0"):
     """
     Trains the given model using provided training and validation data,
     and saves the best model checkpoint.
@@ -150,7 +150,7 @@ def train_model(model, train_data, val_data, checkpoint_dir, epochs=20):
 
     # Ensure the checkpoint directory exists
     os.makedirs(checkpoint_dir, exist_ok=True)
-    checkpoint_path = os.path.join(checkpoint_dir, f'{model.name}.keras')
+    checkpoint_path = os.path.join(checkpoint_dir, f'{modelname}.keras')
     
     # Define callbacks
     early_stopping = EarlyStopping(

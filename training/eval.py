@@ -51,63 +51,105 @@ from plotnine import (
     ggplot, aes, geom_tile, facet_wrap, theme,
     element_blank, coord_fixed
 )
-def superimpose_gradcam(img, heatmap, cam_path="cam.jpg", alpha=0.4):
+def superimpose_gradcam(img, heatmap, cam_path=None, alpha=0.4):
+    """
+    Superimposes the Grad-CAM heatmap onto the original image.
 
+    Args:
+        img (np.array or PIL.Image): Original image array.
+        heatmap (np.array): Grad-CAM heatmap.
+        cam_path (str, optional): Path to save the superimposed image. Defaults to "cam.jpg".
+        alpha (float, optional): Transparency factor for the heatmap. Defaults to 0.4.
+
+    Returns:
+        PIL.Image.Image: Image with heatmap superimposed.
+    """
     # Rescale heatmap to a range 0-255
     heatmap = np.uint8(255 * heatmap)
 
-    # Use jet colormap to colorize heatmap
-    jet = mpl.colormaps["magma"]
+    # Use 'magma' colormap to colorize heatmap
+    magma = mpl.colormaps["magma"]
 
     # Use RGB values of the colormap
-    jet_colors = jet(np.arange(256))[:, :3]
-    jet_heatmap = jet_colors[heatmap]
+    magma_colors = magma(np.arange(256))[:, :3]
+    magma_heatmap = magma_colors[heatmap]
 
     # Create an image with RGB colorized heatmap
-    jet_heatmap = keras.utils.array_to_img(jet_heatmap)
-    jet_heatmap = jet_heatmap.resize((img.shape[1], img.shape[0]))
-    jet_heatmap = keras.utils.img_to_array(jet_heatmap)
+    magma_heatmap = keras.utils.array_to_img(magma_heatmap)
+    magma_heatmap = magma_heatmap.resize((img.shape[1], img.shape[0]))
+    magma_heatmap = keras.utils.img_to_array(magma_heatmap)
 
     # Superimpose the heatmap on original image
-    superimposed_img = jet_heatmap * alpha + img
+    superimposed_img = magma_heatmap * alpha + img
     superimposed_img = keras.utils.array_to_img(superimposed_img)
+
+    # Optionally save the image
+    if cam_path:
+        superimposed_img.save(cam_path)
+
+    return superimposed_img
 
     return superimposed_img
 import matplotlib.pyplot as plt
 import math
-def plot_images_grid(images, figsize=(10, 10)):
+
+def plot_images_grid(images, figsize=(10, 10), captions=None, font_size=12):
+    """
+    Displays a list of images in a grid using Matplotlib, with optional captions beneath each image.
+    
+    Parameters:
+        images (list): List of images. Each image can be either:
+                       - a NumPy array of shape (H, W, 3), or
+                       - a PIL Image.
+        figsize (tuple, optional): Size of the entire figure. Defaults to (10, 10).
+        captions (list of str, optional): List of captions for each image. Must be the same length as images.
+        font_size (int, optional): Font size for the captions. Defaults to 12.
+        
+    Returns:
+        matplotlib.figure.Figure: The Matplotlib figure object containing the grid of images.
+    """
+    if captions is not None and len(captions) != len(images):
+        raise ValueError("Length of captions must match the number of images.")
+    
     def compute_grid_dims(n):
+        """
+        Computes the number of rows and columns for the image grid based on the number of images.
+        
+        Args:
+            n (int): Number of images.
+            
+        Returns:
+            tuple: Number of rows and columns (nrows, ncols).
+        """
         ncols = math.ceil(math.sqrt(n))
         nrows = math.ceil(n / ncols)
         return nrows, ncols
-    """
-    Displays a list of images in a grid using Matplotlib.
-    
-    Parameters:
-      images: list of images. Each image can be either:
-              - a NumPy array of shape (H, W, 3), or
-              - a PIL Image.
-      nrows: number of rows in the grid.
-      ncols: number of columns in the grid.
-      figsize: figure size passed to plt.subplots.
-    """
+
     nrows, ncols = compute_grid_dims(len(images))
     fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
-    # Flatten the axes array for convenience.
+    
+    # Flatten the axes array for easy iteration. If there's only one subplot, make it iterable.
     if nrows * ncols == 1:
         axes = [axes]
     else:
-        axes = axes.flat
-
-    for ax, img in zip(axes, images):
-        # If the image is a PIL Image, convert it to a NumPy array.
-        if hasattr(img, 'convert'):
-            img = np.array(img)
-        ax.imshow(img)
-        ax.axis('off')
-
-    # If there are more subplots than images, hide the extra axes.
-    for ax in axes[len(images):]:
-        ax.axis('off')
+        axes = axes.flatten()
+    
+    for idx, ax in enumerate(axes):
+        if idx < len(images):
+            img = images[idx]
+            # If the image is a PIL Image, convert it to a NumPy array.
+            if hasattr(img, 'convert'):
+                img = np.array(img)
+            ax.imshow(img)
+            ax.axis('off')
+            
+            # Add caption beneath the image if captions are provided
+            if captions is not None:
+                # Adjust the position of the caption
+                ax.set_title(captions[idx], fontsize=font_size, pad=10)
+        else:
+            ax.axis('off')  # Hide axes without images
+    
     plt.tight_layout()
+    plt.show()
     return fig
