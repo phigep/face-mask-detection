@@ -1,7 +1,7 @@
 from keras.applications import EfficientNetV2B0, EfficientNetV2B3
 from dataclasses import dataclass
-from keras.models import Model
-from keras.layers import Dense, GlobalAveragePooling2D, Input, Dropout, Lambda,Resizing, GlobalMaxPooling2D
+from keras.models import Model, Sequential
+from keras.layers import Rescaling,BatchNormalization,MaxPooling2D,Add,Conv2D,ReLU,DepthwiseConv2D, Dense, GlobalAveragePooling2D, Input, Dropout, Lambda,Resizing, GlobalMaxPooling2D
 from keras.optimizers import AdamW
 from keras.datasets import cifar10
 from keras.losses import Loss
@@ -104,6 +104,20 @@ def get_model(base_model, input_dim=(),resize_dim=(), classes=3, classifier_acti
     model = Model(inputs=inputs, outputs=outputs)
     return model
 
+def get_model_(base_model, input_dim=(),resize_dim=(), classes=3, classifier_activation="softmax",training_base=False):
+    
+    inputs = Input(shape=input_dim)
+    base_model.input_tensor = inputs
+    resized_inputs = Resizing(height=resize_dim[0], width=resize_dim[1])(inputs)
+    
+    base = base_model(resized_inputs)
+    x = GlobalAveragePooling2D()(base)
+    x = Dropout(rate=0.3)(x)
+    outputs = Dense(classes, activation=classifier_activation)(x)
+
+    model = Model(inputs=inputs, outputs=outputs)
+    return model
+
 effnetv2b0_base = EfficientNetV2B0(
             include_top=False,
             weights="imagenet",
@@ -115,6 +129,40 @@ effnetv2b3_base = EfficientNetV2B3(
             weights="imagenet",
             include_preprocessing=True,
         )
+
+def create_simple_base(input_shape=(224, 224, 3)):
+    model = Sequential([
+        Input(shape=input_shape),
+        Rescaling(1./255),
+        Conv2D(16, 3, padding='same'),
+        BatchNormalization(),
+        ReLU(),
+        MaxPooling2D(),
+        Conv2D(32, 3, padding='same'),
+        BatchNormalization(),
+        ReLU(),
+        MaxPooling2D(),
+        Conv2D(64, 3, padding='same'),
+        BatchNormalization(),
+        ReLU()
+    ])
+    return model
+
+def create_minimal_base(input_shape=(224, 224, 3)):
+    model = Sequential([
+            ReLU(),
+            MaxPooling2D(),
+            Conv2D(32, 3, padding='same'),
+            BatchNormalization(),
+            ReLU(),
+            MaxPooling2D(),
+            Conv2D(64, 3, padding='same'),
+            BatchNormalization(),
+            ReLU()
+    ])
+    return model
+
+simple_base = create_simple_base()
 
 
 def get_fcn_model(base_model, input_dim=(),resize_dim=(), classes=3, pooling_operation="average"):
@@ -183,3 +231,147 @@ def train_model(model, train_data, val_data, checkpoint_dir, epochs=20,modelname
     )
     
     return model,history
+
+
+
+
+def mbconv_block(x, expand_filters, out_filters, kernel_size=3, strides=1):
+    """A simplified MBConv (Mobile Inverted Bottleneck) block."""
+    inp = x
+    x = Conv2D(expand_filters, kernel_size=1, padding='same', use_bias=False)(x)
+    x = BatchNormalization()(x)
+    x = ReLU(6.0)(x) 
+
+    x = DepthwiseConv2D(kernel_size=kernel_size, strides=strides, 
+                        padding='same', use_bias=False)(x)
+    x = BatchNormalization()(x)
+    x = ReLU(6.0)(x)
+    
+    x = Conv2D(out_filters, kernel_size=1, padding='same', use_bias=False)(x)
+    x = BatchNormalization()(x)
+    
+    if strides == 1 and inp.shape[-1] == out_filters:
+        x = Add()([inp, x])
+    
+    return x
+
+def create_efficient_base(input_shape=(224, 224, 3)):
+    inputs = Input(shape=input_shape)
+    # Scale inputs to [0, 1]
+    x = Rescaling(1.0 / 255)(inputs)
+    
+    # Stem: a simple conv to reduce spatial size early
+    x = Conv2D(32, kernel_size=3, strides=2, padding='same', use_bias=False)(x)
+    x = BatchNormalization()(x)
+    x = ReLU(6.0)(x)
+
+    x = mbconv_block(x, expand_filters=32, out_filters=16, kernel_size=3, strides=1)
+    x = mbconv_block(x, expand_filters=96, out_filters=24, kernel_size=3, strides=2)
+    x = mbconv_block(x, expand_filters=144, out_filters=24, kernel_size=3, strides=1)
+    x = mbconv_block(x, expand_filters=144, out_filters=40, kernel_size=5, strides=2)
+    x = mbconv_block(x, expand_filters=240, out_filters=40, kernel_size=5, strides=1)
+    x = mbconv_block(x, expand_filters=240, out_filters=80, kernel_size=3, strides=2)
+    x = mbconv_block(x, expand_filters=480, out_filters=80, kernel_size=3, strides=1)
+    x = mbconv_block(x, expand_filters=480, out_filters=80, kernel_size=3, strides=1)
+    x = Conv2D(128, kernel_size=1, padding='same', use_bias=False)(x)
+    x = BatchNormalization()(x)
+    x = ReLU(6.0)(x)
+    model = Model(inputs, x)
+    return model
+
+
+
+def create_efficient_base_deeper(input_shape=(224, 224, 3)):
+    inputs = Input(shape=input_shape)
+    # Scale inputs to [0, 1]
+    x = Rescaling(1.0 / 255)(inputs)
+    
+    # Stem: a simple conv to reduce spatial size early
+    x = Conv2D(32, kernel_size=3, strides=2, padding='same', use_bias=False)(x)
+    x = BatchNormalization()(x)
+    x = ReLU(6.0)(x)
+
+    x = mbconv_block(x, expand_filters=32, out_filters=16, kernel_size=3, strides=1)
+    x = mbconv_block(x, expand_filters=96, out_filters=24, kernel_size=3, strides=2)
+    x = mbconv_block(x, expand_filters=144, out_filters=24, kernel_size=3, strides=1)
+    x = mbconv_block(x, expand_filters=144, out_filters=40, kernel_size=5, strides=2)
+    x = mbconv_block(x, expand_filters=240, out_filters=40, kernel_size=5, strides=1)
+    x = mbconv_block(x, expand_filters=240, out_filters=80, kernel_size=3, strides=2)
+    x = mbconv_block(x, expand_filters=480, out_filters=80, kernel_size=3, strides=1)
+    x = mbconv_block(x, expand_filters=480, out_filters=80, kernel_size=3, strides=2)
+    x = mbconv_block(x, expand_filters=576, out_filters=96, kernel_size=5, strides=1)
+    x = mbconv_block(x, expand_filters=576, out_filters=96, kernel_size=5, strides=1)
+    x = Conv2D(512, kernel_size=1, padding='same', use_bias=False)(x)
+    x = BatchNormalization()(x)
+    x = ReLU(6.0)(x)
+    
+    # This model ends with a 4D tensor (feature map), no classification head.
+    model = Model(inputs, x)
+    return model
+
+
+
+mbconv_base = create_efficient_base()
+mbconv_base_deeper = create_efficient_base_deeper()
+
+
+
+def combine_batches(features, labels):
+    if features.shape[0] != labels.shape[0]:
+        raise ValueError("The number of batches in features and labels must be the same.")
+    
+    num_features = features.shape[-1]
+    X = features.reshape(-1, num_features)
+    num_classes = labels.shape[-1]
+    labels_reshaped = labels.reshape(-1, num_classes)
+    y = np.argmax(labels_reshaped, axis=1)
+    
+    return X, y
+
+
+from dataclasses import dataclass
+from sklearn.base import BaseEstimator
+import numpy as np
+from typing import Any
+
+@dataclass
+class HybridModel():
+    fcn: Model
+    clf: BaseEstimator
+    train_dataset: tf.data.Dataset
+    validation_dataset:tf.data.Dataset
+    test_dataset:tf.data.Dataset
+    X_train: Any = None
+    X_val: Any = None
+    X_test: Any = None
+    y_train: Any = None
+    y_val: Any = None
+    y_train: Any = None
+    def prepare_x_y_pairs(self, dataset: tf.data.Dataset):
+
+        features = []
+        labels = []
+        
+        for batch_inputs, batch_labels in dataset:
+            # Extract features using the FCN
+            batch_features = self.fcn.predict(batch_inputs)
+            features.append(batch_features)
+            labels.append(batch_labels.numpy())  # Convert TensorFlow tensors to NumPy arrays
+
+        # Convert lists to NumPy arrays
+        features = np.array(features[:-1])
+        labels = np.array(labels[:-1])
+        
+        # Combine batches into X and y using the provided function
+        X, y = combine_batches(features, labels)
+        
+        return X, y
+    
+    def __post_init__(self):
+        """
+        Post-initialization processing to prepare training, validation, and test data.
+        """
+        self.X_train, self.y_train = self.prepare_x_y_pairs(self.train_dataset)
+        self.X_val, self.y_val = self.prepare_x_y_pairs(self.validation_dataset)
+        self.X_test, self.y_test = self.prepare_x_y_pairs(self.test_dataset)
+    

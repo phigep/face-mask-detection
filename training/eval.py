@@ -93,7 +93,7 @@ def superimpose_gradcam(img, heatmap, cam_path=None, alpha=0.4):
 import matplotlib.pyplot as plt
 import math
 
-def plot_images_grid(images, figsize=(10, 10), captions=None, font_size=12):
+def plot_images_grid(images, figsize=(12, 6), captions=None, font_size=12):
     """
     Displays a list of images in a grid using Matplotlib, with optional captions beneath each image.
     
@@ -125,7 +125,8 @@ def plot_images_grid(images, figsize=(10, 10), captions=None, font_size=12):
         nrows = math.ceil(n / ncols)
         return nrows, ncols
 
-    nrows, ncols = compute_grid_dims(len(images))
+    #nrows, ncols = compute_grid_dims(len(images))
+    nrows, ncols = 2,4
     fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
     
     # Flatten the axes array for easy iteration. If there's only one subplot, make it iterable.
@@ -146,7 +147,7 @@ def plot_images_grid(images, figsize=(10, 10), captions=None, font_size=12):
             # Add caption beneath the image if captions are provided
             if captions is not None:
                 # Adjust the position of the caption
-                ax.set_title(captions[idx], fontsize=font_size, pad=10)
+                ax.set_title(captions[idx], fontsize=font_size, pad=2)
         else:
             ax.axis('off')  # Hide axes without images
     
